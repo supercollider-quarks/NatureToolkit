@@ -30,6 +30,10 @@ PLSeg{
 		//		<< ")";
 	}
 
+	asEvent{
+		^( plName: name, plPars: pars );
+	}
+
 }
 
 PLBranch : List {
@@ -158,6 +162,7 @@ PLSys {
 	/// resets the system to its initial state
 	reset{
 		state = nil;
+		axiom = this.parseAxiomString( axiomString );
 	}
 
 	getContextLeft{ |index,level|
@@ -270,4 +275,20 @@ PLSys {
 		^ax;
 	}
 
+	asPattern{ |parNames|
+		var evlist;
+		parNames = parNames ?? Array.fill( state.first.pars.size, {|i| ("plPar"++i).asSymbol; });
+		if ( state.notNil ){
+			evlist = this.state.collect{ |it| 
+				var ev = it.asEvent; 
+				[ev[\plName],ev[\plPars]]
+			}.flop;
+			evlist[0] = evlist[0].bubble;
+			evlist[1] = evlist[1].flop;
+			evlist = evlist.flatten(1);
+			^Pbind( *([\plName, Pseq( evlist[0], 1) ] ++ ( [parNames, evlist.copyToEnd(1)].flop.collect{ |it| [ it[0], Pseq( it[1], 1 ) ] }.flatten; ); ) );
+		};
+		^nil;
+	}
+	
 }
