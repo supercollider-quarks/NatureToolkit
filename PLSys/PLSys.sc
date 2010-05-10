@@ -55,8 +55,13 @@ PLRule {
 	var <>segment;
 	var <>predecessor,<>successor;
 
-	*new{ |seg,pre,suc,func|
-		^super.newCopyArgs(func,seg,pre,suc)
+	var <>unique = true;
+	var <>name;
+
+	var <>active = true;
+
+	*new{ |seg,pre,suc,func,unique,name|
+		^super.newCopyArgs(func,seg,pre,suc,unique,name)
 	}
 
 	/// get the left context size for this rule
@@ -71,6 +76,11 @@ PLRule {
 
 	apply{ |seg,pre,suc|
 		var funcArgs;
+
+		if ( active.not ){
+			^nil
+		};
+
 		//		[seg,pre,suc].postln;
 		if ( seg.name != segment ){
 			//			"segment wrong name".postln;
@@ -105,6 +115,7 @@ PLRule {
 		funcArgs = [seg.pars];
 		if ( pre.notNil ){ funcArgs = funcArgs ++ [pre.pars] }{ funcArgs = funcArgs ++ [nil] };
 		if ( suc.notNil ){ funcArgs = funcArgs ++ [suc.pars] }{ funcArgs = funcArgs ++ [nil] };
+		funcArgs = funcArgs ++ seg;
 		//		funcArgs.postln;
 		^function.value( *funcArgs );
 	}
@@ -122,16 +133,21 @@ PLSys {
 
 	var <>state;
 
-	var <rulesList;
+	//	var <rulesList;
 	var <ruleSet;
 
 	var <>ignore;
+	var <>remove;
 
-	*new{ |axiom,rules,ignore|
-		^super.new.ignore_(ignore).init( axiom, rules )
+	var <>verbose = 0;
+
+	*new{ |axiom,rules,ignore,remove|
+		^super.new.ignore_(ignore).remove_(remove).init( axiom, rules )
 	}
 
 	init{ |ax,rules|
+		ignore = ignore ? [];
+		remove = remove ? [];
 		if ( ax.isKindOf( String ) ){
 			axiomString = ax;
 			axiom = this.parseAxiomString( ax );
@@ -212,10 +228,12 @@ PLSys {
 			nomore = false;
 			ruleSet.do{ |rule|
 				if ( nomore.not ){ /// only one rule may apply
-					res = rule.apply( *(seg.at([1,0,2] )) );
+					res = rule.apply( *(seg.at([1,0,2])) );
 					if ( res.notNil ){
 						newstate = newstate.add( res ).flatten;
-						nomore = true;
+						if ( rule.unique ){
+							nomore = true;
+						};
 					};
 				};
 			};
@@ -223,7 +241,8 @@ PLSys {
 				newstate = newstate.add( seg[1] );
 			};
 		};
-		newstate.postln;
+		newstate = newstate.reject( { |it| remove.includes( it.name ); });
+		if ( verbose > 0 ){	newstate.postln; };
 		state = newstate;
 	}
 

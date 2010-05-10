@@ -6,6 +6,10 @@
 (
 a = PLSys.new( "F(0,0,900)F(4,1,900)F(0,0,900)", 
 	[ 
+		// rule definition
+		// segment, predecessor, successor, function making up the rule
+		// arguments to the function are the parameters of the segment,
+		// of the predecessor, and of the successor, and finally the segment itself (in case you want to modify the segment before it goes into another rule)
 		['F',nil,nil,{ |t,p,s| if ( t[1]==1 and: (t[0] >= 6) ){ 
 			[ 
 				PLSeg( "F", t*[2/3,0,1]+[0,2,0] ),
