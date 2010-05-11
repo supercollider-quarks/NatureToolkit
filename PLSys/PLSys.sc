@@ -1,6 +1,6 @@
 /// Context sensitive parametric L-systems
 /// implementation by nescivi
-/// Copyright 2009, Marije Baalman
+/// Copyright 2009-10, Marije Baalman
 
 /// this version still needs to be extended for contexts larger than 1
 /// and branching of the pattern
@@ -277,8 +277,8 @@ PLSys {
 
 	asPattern{ |parNames|
 		var evlist;
-		parNames = parNames ?? Array.fill( state.first.pars.size, {|i| ("plPar"++i).asSymbol; });
 		if ( state.notNil ){
+			parNames = parNames ?? Array.fill( state.first.pars.size, {|i| ("plPar"++i).asSymbol; });
 			evlist = this.state.collect{ |it| 
 				var ev = it.asEvent; 
 				[ev[\plName],ev[\plPars]]
@@ -288,7 +288,7 @@ PLSys {
 			evlist = evlist.flatten(1);
 			^Pbind( *([\plName, Pseq( evlist[0], 1) ] ++ ( [parNames, evlist.copyToEnd(1)].flop.collect{ |it| [ it[0], Pseq( it[1], 1 ) ] }.flatten; ); ) );
 		};
-		^nil;
+		^Pbind();
 	}
 	
 }
