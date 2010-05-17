@@ -30,6 +30,10 @@ PLSeg{
 		//		<< ")";
 	}
 
+	storeArgs { 
+		^[name,pars]
+	}
+
 	asEvent{
 		^( plName: name, plPars: pars );
 	}
@@ -64,8 +68,12 @@ PLRule {
 
 	var <>active = true;
 
-	*new{ |seg,pre,suc,func,unique,name|
-		^super.newCopyArgs(func,seg,pre,suc,unique,name)
+	*new{ |seg,pre,suc,func,unique=true,name,active=true|
+		^super.newCopyArgs(func,seg,pre,suc,unique,name,active)
+	}
+
+	storeArgs { 
+		^[segment,predecessor,successor,function,unique,name,active] 
 	}
 
 	/// get the left context size for this rule
@@ -145,6 +153,8 @@ PLSys {
 
 	var <>verbose = 0;
 
+	var <>routine;
+
 	*new{ |axiom,rules,ignore,remove|
 		^super.new.ignore_(ignore).remove_(remove).init( axiom, rules )
 	}
@@ -163,6 +173,7 @@ PLSys {
 	reset{
 		state = nil;
 		axiom = this.parseAxiomString( axiomString );
+		if ( routine.notNil ){ routine.reset };
 	}
 
 	getContextLeft{ |index,level|
@@ -202,31 +213,53 @@ PLSys {
 	applyRules{
 		var tstate,res,newstate,nomore;
 		var istate;
+		var last, prev, prev2;
 		newstate = List.new;
 
 		if ( state.isNil ){ state = axiom };
 
-		/// select the context sensitive items
-		tstate = state.select{ |it| ignore.includes( it.name ).not };
-
-		/// recall where the ignored items are
-		istate = state.selectIndex{ |it| ignore.includes( it.name ) };
-
-		/// context sensitive:
-		/// make a list that has triples of predecessors, segments and successors
-		tstate = tstate.addFirst( nil ).add( nil ).slide(3).clump(3);
-
-		//	tstate.postln;
-		//		istate.postln;
-
-		/// now we need to add back in the items that had to be ignored for context sensitivity
-		/// iterate over the ignored indices of the original list and insert 
-		/// the original items, without context
-		istate.do{ |index|
-			tstate = tstate.insert( index, [ nil, state[index], nil ] );
+		/// more efficient version... only iterating once over the whole list..
+		last = state.size - 1;
+		prev = nil;
+		tstate = state.collect{ |it,i|
+			if ( i == last ){
+				if ( ignore.includes( it.name ) ){
+					[ nil, it, nil ];
+				}{
+					prev2 = prev; prev = it;
+					[ prev2, it, nil ];
+				}				
+			}{
+				if ( ignore.includes( it.name ) ){
+					[ nil, it, nil ];
+				}{
+					prev2 = prev; prev = it;
+					[ prev2, it, state[i+1] ];
+				}
+			}
 		};
 
-		//		tstate.postln;
+		/*
+			/// select the context sensitive items
+			tstate = state.select{ |it| ignore.includes( it.name ).not };
+			
+			/// recall where the ignored items are
+			istate = state.selectIndex{ |it| ignore.includes( it.name ) };
+			
+			/// context sensitive:
+			/// make a list that has triples of predecessors, segments and successors
+			tstate = tstate.addFirst( nil ).add( nil ).slide(3).clump(3);
+
+			//	tstate.postln;
+			//	istate.postln;
+			
+			/// now we need to add back in the items that had to be ignored for context sensitivity
+			/// iterate over the ignored indices of the original list and insert 
+			/// the original items, without context
+			istate.do{ |index|
+			tstate = tstate.insert( index, [ nil, state[index], nil ] );
+			};
+		*/
 		
 		tstate.do{ |seg|
 			res = nil;
@@ -249,6 +282,67 @@ PLSys {
 		newstate = newstate.reject( { |it| remove.includes( it.name ); });
 		if ( verbose > 0 ){	newstate.postln; };
 		state = newstate;
+	}
+
+	createRoutine{
+		routine = Routine{
+			
+			var tstate,res,newstate,nomore;
+			var last, prev, prev2;
+
+			loop{
+				if ( state.isNil ){ state = axiom };
+				newstate = List.new;
+
+				last = state.size - 1;
+				prev = nil;
+
+				tstate = state.collect{ |it,i|
+					if ( i == last ){
+						if ( ignore.includes( it.name ) ){
+							[ nil, it, nil ];
+						}{
+							prev2 = prev; prev = it;
+							[ prev2, it, nil ];
+						}				
+					}{
+						if ( ignore.includes( it.name ) ){
+							[ nil, it, nil ];
+						}{
+							prev2 = prev; prev = it;
+							[ prev2, it, state[i+1] ];
+						}
+					}
+				};
+		
+				tstate.do{ |seg,i|
+					res = nil;
+					nomore = false;
+					ruleSet.do{ |rule|
+						if ( nomore.not ){ /// only one rule may apply
+							res = rule.apply( *(seg.at([1,0,2])) );
+							if ( res.notNil ){
+								newstate = newstate.add( res ).flatten;
+								if ( rule.unique ){
+									nomore = true;
+								};
+							};
+						};
+					};
+					if ( res.isNil ){ /// no rule applied, so segment is unchanged
+						newstate = newstate.add( seg[1] );
+					};
+					newstate = newstate.reject( { |it| remove.includes( it.name ); });
+					state = newstate ++ state.copyToEnd( i+1 );
+					if ( verbose > 0 ){	state.postln; };
+					state.yield;
+				};
+			};
+		};
+	}
+
+	nextApply{
+		^routine.next;
 	}
 
 	parseRulesList{ |rl|
@@ -291,4 +385,19 @@ PLSys {
 		^Pbind();
 	}
 	
+	saveRules{ |path|
+		ruleSet.writeArchive( path );
+	}
+
+	loadRules{ |path|
+		ruleSet = Object.readArchive( path );
+	}
+
+	saveState{ |path|
+		state.writeArchive( path );
+	}
+
+	loadState{ |path|
+		state = Object.readArchive( path );
+	}
 }
