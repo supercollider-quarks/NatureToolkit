@@ -220,14 +220,14 @@ PLSys {
 
 		/// more efficient version... only iterating once over the whole list..
 		last = state.size - 1;
-		prev = nil;
+		prev = PLSeg('{',[0,0,0,0]);
 		tstate = state.collect{ |it,i|
 			if ( i == last ){
 				if ( ignore.includes( it.name ) ){
 					[ nil, it, nil ];
 				}{
 					prev2 = prev; prev = it;
-					[ prev2, it, nil ];
+					[ prev2, it, PLSeg('}',[0,0,0,0]) ];
 				}				
 			}{
 				if ( ignore.includes( it.name ) ){
@@ -261,12 +261,12 @@ PLSys {
 			};
 		*/
 		
-		tstate.do{ |seg|
+		tstate.do{ |segs|
 			res = nil;
 			nomore = false;
 			ruleSet.do{ |rule|
 				if ( nomore.not ){ /// only one rule may apply
-					res = rule.apply( *(seg.at([1,0,2])) );
+					res = rule.apply( *(segs.at([1,0,2])) );
 					if ( res.notNil ){
 						newstate = newstate.add( res ).flatten;
 						if ( rule.unique ){
@@ -275,8 +275,8 @@ PLSys {
 					};
 				};
 			};
-			if ( res.isNil ){ /// no rule applied, so segment is unchanged
-				newstate = newstate.add( seg[1] );
+			if ( res.isNil ){ /// no rule applied, so keep the old segment
+				newstate = newstate.add( segs[1] );
 			};
 		};
 		newstate = newstate.reject( { |it| remove.includes( it.name ); });
@@ -287,15 +287,21 @@ PLSys {
 	createRoutine{
 		routine = Routine{
 			
-			var tstate,res,newstate,nomore;
+			var tstate,res,newstate,oldstate,nomore;
 			var last, prev, prev2;
 
 			loop{
 				if ( state.isNil ){ state = axiom };
 				newstate = List.new;
+				oldstate = state.copy;
+
+				if ( verbose > 1 ){
+					"--- start of sequence ---".postln;
+					oldstate.postcs;
+				};
 
 				last = state.size - 1;
-				prev = nil;
+				prev = PLSeg('{',[0,0,0,0]);
 
 				tstate = state.collect{ |it,i|
 					if ( i == last ){
@@ -303,7 +309,7 @@ PLSys {
 							[ nil, it, nil ];
 						}{
 							prev2 = prev; prev = it;
-							[ prev2, it, nil ];
+							[ prev2, it, PLSeg('}',[0,0,0,0]) ];
 						}				
 					}{
 						if ( ignore.includes( it.name ) ){
@@ -315,13 +321,21 @@ PLSys {
 					}
 				};
 		
-				tstate.do{ |seg,i|
+				if ( verbose > 2 ){
+					tstate.postcs;
+				};
+
+				tstate.do{ |segs,i|
+					last = state.size;
 					res = nil;
 					nomore = false;
 					ruleSet.do{ |rule|
-						if ( nomore.not ){ /// only one rule may apply
-							res = rule.apply( *(seg.at([1,0,2])) );
+						if ( nomore.not ){ /// only one unique rule may apply
+							res = rule.apply( *(segs.at([1,0,2])) );
 							if ( res.notNil ){
+								if ( verbose > 2 ){
+									[segs, rule].postcs;
+								};
 								newstate = newstate.add( res ).flatten;
 								if ( rule.unique ){
 									nomore = true;
@@ -330,11 +344,17 @@ PLSys {
 						};
 					};
 					if ( res.isNil ){ /// no rule applied, so segment is unchanged
-						newstate = newstate.add( seg[1] );
+						newstate = newstate.add( segs[1] );
 					};
 					newstate = newstate.reject( { |it| remove.includes( it.name ); });
-					state = newstate ++ state.copyToEnd( i+1 );
-					if ( verbose > 0 ){	state.postln; };
+					state = newstate ++ oldstate.copyToEnd( i+1 );
+					
+					if ( verbose > 0 and: (state.size > last) ){
+						// grown since last update
+						"----- growth -----".postln;
+						state.postcs;
+					};
+					if ( verbose > 2 ){	state.postln; };
 					state.yield;
 				};
 			};
