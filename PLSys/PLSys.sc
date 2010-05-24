@@ -213,54 +213,12 @@ PLSys {
 	applyRules{
 		var tstate,res,newstate,nomore;
 		var istate;
-		var last, prev, prev2;
 		newstate = List.new;
 
 		if ( state.isNil ){ state = axiom };
 
-		/// more efficient version... only iterating once over the whole list..
-		last = state.size - 1;
-		prev = PLSeg('{',[0,0,0,0]);
-		tstate = state.collect{ |it,i|
-			if ( i == last ){
-				if ( ignore.includes( it.name ) ){
-					[ nil, it, nil ];
-				}{
-					prev2 = prev; prev = it;
-					[ prev2, it, PLSeg('}',[0,0,0,0]) ];
-				}				
-			}{
-				if ( ignore.includes( it.name ) ){
-					[ nil, it, nil ];
-				}{
-					prev2 = prev; prev = it;
-					[ prev2, it, state[i+1] ];
-				}
-			}
-		};
+		tstate = this.buildTState;
 
-		/*
-			/// select the context sensitive items
-			tstate = state.select{ |it| ignore.includes( it.name ).not };
-			
-			/// recall where the ignored items are
-			istate = state.selectIndex{ |it| ignore.includes( it.name ) };
-			
-			/// context sensitive:
-			/// make a list that has triples of predecessors, segments and successors
-			tstate = tstate.addFirst( nil ).add( nil ).slide(3).clump(3);
-
-			//	tstate.postln;
-			//	istate.postln;
-			
-			/// now we need to add back in the items that had to be ignored for context sensitivity
-			/// iterate over the ignored indices of the original list and insert 
-			/// the original items, without context
-			istate.do{ |index|
-			tstate = tstate.insert( index, [ nil, state[index], nil ] );
-			};
-		*/
-		
 		tstate.do{ |segs|
 			res = nil;
 			nomore = false;
@@ -284,26 +242,13 @@ PLSys {
 		state = newstate;
 	}
 
-	createRoutine{
-		routine = Routine{
-			
-			var tstate,res,newstate,oldstate,nomore;
-			var last, prev, prev2;
+	buildTState{
+		var tstate;
+		var last, prev, prev2;
 
-			loop{
-				if ( state.isNil ){ state = axiom };
-				newstate = List.new;
-				oldstate = state.copy;
-
-				if ( verbose > 1 ){
-					"--- start of sequence ---".postln;
-					oldstate.postcs;
-				};
-
-				last = state.size - 1;
-				prev = PLSeg('{',[0,0,0,0]);
-
-				tstate = state.collect{ |it,i|
+		last = state.size - 1;
+		prev = PLSeg('{',[0,0,0,0]);
+		tstate = state.collect{ |it,i|
 					if ( i == last ){
 						if ( ignore.includes( it.name ) ){
 							[ nil, it, nil ];
@@ -320,10 +265,52 @@ PLSys {
 						}
 					}
 				};
-		
-				if ( verbose > 2 ){
-					tstate.postcs;
+		if ( verbose > 2 ){
+			tstate.postcs;
+		};
+
+		^tstate;
+
+		/*
+			/// select the context sensitive items
+			tstate = state.select{ |it| ignore.includes( it.name ).not };
+			
+			/// recall where the ignored items are
+			istate = state.selectIndex{ |it| ignore.includes( it.name ) };
+			
+			/// context sensitive:
+			/// make a list that has triples of predecessors, segments and successors
+			tstate = tstate.addFirst( nil ).add( nil ).slide(3).clump(3);
+
+			//	tstate.postln;
+			//	istate.postln;
+			
+			/// now we need to add back in the items that had to be ignored for context sensitivity
+			/// iterate over the ignored indices of the original list and insert 
+			/// the original items, without context
+			istate.do{ |index|
+			tstate = tstate.insert( index, [ nil, state[index], nil ] );
+			};
+		*/
+	}
+
+	createRoutine{
+		routine = Routine{
+			
+			var tstate,res,newstate,oldstate,nomore;
+			var last;
+
+			loop{
+				if ( state.isNil ){ state = axiom };
+				newstate = List.new;
+				oldstate = state.copy;
+
+				if ( verbose > 1 ){
+					"--- start of sequence ---".postln;
+					oldstate.postcs;
 				};
+
+				tstate = this.buildTState;
 
 				tstate.do{ |segs,i|
 					last = state.size;
@@ -347,7 +334,8 @@ PLSys {
 						newstate = newstate.add( segs[1] );
 					};
 					newstate = newstate.reject( { |it| remove.includes( it.name ); });
-					state = newstate ++ oldstate.copyToEnd( i+1 );
+					oldstate = oldstate.drop(1);
+					state = newstate ++ oldstate;
 					
 					if ( verbose > 0 and: (state.size > last) ){
 						// grown since last update
