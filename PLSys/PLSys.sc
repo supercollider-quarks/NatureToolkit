@@ -245,16 +245,21 @@ PLSys {
 	buildTState{
 		var tstate;
 		var last, prev, prev2;
+		
+		var segSize;
 
 		last = state.size - 1;
-		prev = PLSeg('{',[0,0,0,0]);
+		
+		segSize = axiom.first.pars.size;
+		
+		prev = PLSeg('{', Array.fill( segSize, 0 ) );
 		tstate = state.collect{ |it,i|
 					if ( i == last ){
 						if ( ignore.includes( it.name ) ){
 							[ nil, it, nil ];
 						}{
 							prev2 = prev; prev = it;
-							[ prev2, it, PLSeg('}',[0,0,0,0]) ];
+							[ prev2, it, PLSeg('}', Array.fill( segSize, 0 ) ) ];
 						}				
 					}{
 						if ( ignore.includes( it.name ) ){
