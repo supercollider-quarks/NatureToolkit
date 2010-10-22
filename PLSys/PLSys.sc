@@ -38,6 +38,12 @@ PLSeg{
 		^( plName: name, plPars: pars );
 	}
 
+	asPatternPairs{ |parNames|
+		//	var outEvent = ();
+		parNames = parNames ?? Array.fill( pars.size, {|i| ("plPar"++i).asSymbol; });
+		^( [\plName, name ] ++ [ parNames, pars].flop).flatten
+	}
+
 }
 
 PLBranch : List {
@@ -154,6 +160,7 @@ PLSys {
 	var <>verbose = 0;
 
 	var <>routine;
+	var <currentCalcSegment;
 
 	*new{ |axiom,rules,ignore,remove|
 		^super.new.ignore_(ignore).remove_(remove).init( axiom, rules )
@@ -338,10 +345,10 @@ PLSys {
 					if ( res.isNil ){ /// no rule applied, so segment is unchanged
 						newstate = newstate.add( segs[1] );
 					};
+					currentCalcSegment = newstate.last;
 					newstate = newstate.reject( { |it| remove.includes( it.name ); });
 					oldstate = oldstate.drop(1);
 					state = newstate ++ oldstate;
-					
 					if ( verbose > 0 and: (state.size > last) ){
 						// grown since last update
 						"----- growth -----".postln;
