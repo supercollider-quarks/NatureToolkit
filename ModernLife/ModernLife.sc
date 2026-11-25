@@ -1,6 +1,6 @@
 ModernLife
 {
-	var win, view, isPlaying, playRoutine, cellSideLen, currentGrid, nextGrid,
+	var win, view, isPlaying, playRoutine, currentGrid, nextGrid,
 	<numDivs, sideLen, cellSideLen, <>fps, <historySize, history, counter, averages,
 	<>fadeAmount, firstRule, secondRule, <>lowThresh, <>hiThresh, <>userFunc, <currentFps,
 	oldElapsedTime, historySums;
